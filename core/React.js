@@ -53,43 +53,56 @@ function commitRoot() {
 
 function commitWork(fiber) {
   if (fiber !== null) {
-    console.log(666, fiber);
-    fiber.parent.dom.appendChild(fiber.dom);
+    if (fiber.parent.dom) {
+      fiber.parent.dom.appendChild(fiber.dom);
+    }
     commitWork(fiber.child);
     commitWork(fiber.subling);
   }
 }
 
-/**
- * 创建节点 并绑定参数
- * @param {*} fiber
- */
-function createDom(type, props) {
-  const dom =
-    type === TEXT_EL ? createTextEl(props.value) : document.createElement(type);
-  props &&
+function initHtmlDom(fiber) {
+  if (!fiber.dom) {
+    const dom =
+      fiber.type === TEXT_EL
+        ? createTextEl(fiber.props.value)
+        : document.createElement(fiber.type);
+    Object.keys(fiber.props).map((key) => {
+      if (key !== "children") {
+        dom[key] = fiber.props[key];
+      }
+    });
+    fiber.dom = dom;
+  }
+}
+
+function initFunctionDom(fiber) {
+  let { props, type } = fiber.type(fiber.props);
+  while (typeof type === "function") {
+    props = type(props).props;
+    type = type(props).type;
+  }
+  if (!fiber.dom) {
+    const dom =
+      type === TEXT_EL
+        ? createTextEl(props.value)
+        : document.createElement(type);
     Object.keys(props).map((key) => {
       if (key !== "children") {
         dom[key] = props[key];
       }
     });
-  return dom;
+    fiber.dom = dom;
+  }
+  fiber.type = type;
+  fiber.props = props;
 }
 
-/**
- * @param {object} fiber
- */
-function performUnitOfWork(fiber) {
-  // console.log("fiber", fiber)
-  if (!fiber.dom) {
-    // 创建当前dom并挂载到父节点
-    fiber.dom = createDom(fiber.type, fiber.props, fiber);
-    // fiber.parent.dom.appendChild(fiber.dom);
-  }
-  // 遍历 创建子节点的fiber
+function initChildFiber(fiber) {
+  const props = fiber.props;
   let lastChild = null;
-  if (fiber.props.children) {
-    fiber.props.children.forEach((child, index) => {
+  if (props.children) {
+    props.children.forEach((child, index) => {
       const newFiber = {
         type: child.type,
         props: child.props,
@@ -106,6 +119,29 @@ function performUnitOfWork(fiber) {
       lastChild = newFiber;
     });
   }
+}
+
+function createFunctionComponent(fiber) {
+  initFunctionDom(fiber);
+  initChildFiber(fiber);
+  console.log("createFunctionComponent", fiber);
+}
+
+function createHtmlComponent(fiber) {
+  initHtmlDom(fiber);
+  initChildFiber(fiber);
+}
+
+function performUnitOfWork(fiber) {
+  const isFunctionComponent = typeof fiber.type === "function";
+  if (isFunctionComponent) {
+    createFunctionComponent(fiber);
+  } else {
+    createHtmlComponent(fiber);
+  }
+
+  console.log(fiber);
+
   // 返回下一个fiber
   if (fiber.child) {
     return fiber.child;
