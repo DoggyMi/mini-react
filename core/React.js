@@ -21,15 +21,16 @@ function createElement(type, props, ...children) {
 }
 
 function render(container, elementData) {
-  console.log(1, container, elementData);
   nextFiber = {
     dom: container,
     type: elementData.type,
     props: elementData.props,
   };
+  rootFiber = nextFiber;
 }
 
 let nextFiber = null;
+let rootFiber = null;
 
 function callback(param) {
   const timeRemaining = param.timeRemaining();
@@ -38,7 +39,25 @@ function callback(param) {
     nextFiber = performUnitOfWork(nextFiber);
     shouldYield = timeRemaining < 1;
   }
+  // console.log(nextFiber);
+  if (nextFiber === null && rootFiber) {
+    commitRoot();
+  }
   requestIdleCallback(callback);
+}
+
+function commitRoot() {
+  commitWork(rootFiber.child);
+  rootFiber = null;
+}
+
+function commitWork(fiber) {
+  if (fiber !== null) {
+    console.log(666, fiber);
+    fiber.parent.dom.appendChild(fiber.dom);
+    commitWork(fiber.child);
+    commitWork(fiber.subling);
+  }
 }
 
 /**
@@ -46,7 +65,6 @@ function callback(param) {
  * @param {*} fiber
  */
 function createDom(type, props) {
-  // console.log(type, props);
   const dom =
     type === TEXT_EL ? createTextEl(props.value) : document.createElement(type);
   props &&
@@ -62,17 +80,16 @@ function createDom(type, props) {
  * @param {object} fiber
  */
 function performUnitOfWork(fiber) {
-  console.log("fiber", fiber);
+  // console.log("fiber", fiber)
   if (!fiber.dom) {
     // 创建当前dom并挂载到父节点
     fiber.dom = createDom(fiber.type, fiber.props, fiber);
-    fiber.parent.dom.appendChild(fiber.dom);
+    // fiber.parent.dom.appendChild(fiber.dom);
   }
   // 遍历 创建子节点的fiber
   let lastChild = null;
   if (fiber.props.children) {
     fiber.props.children.forEach((child, index) => {
-      console.log("child", child, index);
       const newFiber = {
         type: child.type,
         props: child.props,
