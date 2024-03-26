@@ -1,162 +1,147 @@
-const TEXT_EL = "TEXT_EL";
+const TEXT_ELEMENT = "TEXT_ELEMENT";
 
-function createTextEl(textStr) {
-  return document.createTextNode(textStr);
+function createTextVDOM(textStr) {
+  return { type: TEXT_ELEMENT, props: { nodeValue: textStr, children: [] } };
 }
 
-function createTextElData(textStr) {
-  return { type: TEXT_EL, props: { value: textStr } };
-}
-
-function createElement(type, props, ...children) {
+function createVDom(type, props, ...children) {
   return {
     type,
     props: {
       ...props,
       children: children.map((child) => {
-        return typeof child === "string" ? createTextElData(child) : child;
+        const isTextNode =
+          typeof child === "string" || typeof child === "number";
+        return isTextNode ? createTextVDOM(child) : child;
       }),
     },
   };
 }
 
-function render(container, elementData) {
-  nextFiber = {
+function render(elementData, container) {
+  nextWorkOfUnit = {
     dom: container,
-    type: elementData.type,
-    props: elementData.props,
+    props: {
+      children: [elementData],
+    },
   };
-  rootFiber = nextFiber;
+  root = nextWorkOfUnit;
 }
 
-let nextFiber = null;
-let rootFiber = null;
+let nextWorkOfUnit = null;
+let root = null;
 
-function callback(param) {
+function workLoop(param) {
   const timeRemaining = param.timeRemaining();
   let shouldYield = false;
-  while (nextFiber && !shouldYield) {
-    nextFiber = performUnitOfWork(nextFiber);
+  while (nextWorkOfUnit && !shouldYield) {
+    nextWorkOfUnit = performUnitOfWork(nextWorkOfUnit);
     shouldYield = timeRemaining < 1;
   }
   // console.log(nextFiber);
-  if (nextFiber === null && rootFiber) {
+  if (!nextWorkOfUnit && root) {
     commitRoot();
   }
-  requestIdleCallback(callback);
+  requestIdleCallback(workLoop);
 }
 
 function commitRoot() {
-  commitWork(rootFiber.child);
-  rootFiber = null;
+  commitWork(root.child);
+  root = null;
 }
 
 function commitWork(fiber) {
-  if (fiber !== null) {
-    if (fiber.parent.dom) {
-      fiber.parent.dom.appendChild(fiber.dom);
+  if (!fiber) return;
+
+  let fiberParent = fiber.parent;
+  while (!fiberParent.dom) {
+    fiberParent = fiberParent.parent;
+  }
+
+  if (fiber.dom) {
+    fiberParent.dom.append(fiber.dom);
+  }
+  commitWork(fiber.child);
+  commitWork(fiber.sibling);
+}
+
+function createDom(type) {
+  return type === TEXT_ELEMENT
+    ? document.createTextNode("")
+    : document.createElement(type);
+}
+
+function updateProps(dom, props) {
+  Object.keys(props).forEach((key) => {
+    if (key !== "children") {
+      dom[key] = props[key];
     }
-    commitWork(fiber.child);
-    commitWork(fiber.subling);
-  }
+  });
 }
 
-function initHtmlDom(fiber) {
+function initChildren(fiber, children) {
+  let prevChild = null;
+  children.forEach((child, index) => {
+    const newFiber = {
+      type: child.type,
+      props: child.props,
+      child: null,
+      parent: fiber,
+      sibling: null,
+      dom: null,
+    };
+
+    if (index === 0) {
+      fiber.child = newFiber;
+    } else {
+      prevChild.sibling = newFiber;
+    }
+    prevChild = newFiber;
+  });
+}
+
+function updateFunctionComponent(fiber) {
+  const children = [fiber.type(fiber.props)];
+  initChildren(fiber, children);
+}
+
+function updateHostComponent(fiber) {
   if (!fiber.dom) {
-    const dom =
-      fiber.type === TEXT_EL
-        ? createTextEl(fiber.props.value)
-        : document.createElement(fiber.type);
-    Object.keys(fiber.props).map((key) => {
-      if (key !== "children") {
-        dom[key] = fiber.props[key];
-      }
-    });
-    fiber.dom = dom;
+    const dom = (fiber.dom = createDom(fiber.type));
+    updateProps(dom, fiber.props);
   }
-}
 
-function initFunctionDom(fiber) {
-  let { props, type } = fiber.type(fiber.props);
-  while (typeof type === "function") {
-    props = type(props).props;
-    type = type(props).type;
-  }
-  if (!fiber.dom) {
-    const dom =
-      type === TEXT_EL
-        ? createTextEl(props.value)
-        : document.createElement(type);
-    Object.keys(props).map((key) => {
-      if (key !== "children") {
-        dom[key] = props[key];
-      }
-    });
-    fiber.dom = dom;
-  }
-  fiber.type = type;
-  fiber.props = props;
-}
-
-function initChildFiber(fiber) {
-  const props = fiber.props;
-  let lastChild = null;
-  if (props.children) {
-    props.children.forEach((child, index) => {
-      const newFiber = {
-        type: child.type,
-        props: child.props,
-        parent: fiber,
-        dom: null,
-        child: null,
-        subling: null,
-      };
-      if (index === 0) {
-        fiber.child = newFiber;
-      } else if (lastChild) {
-        lastChild.subling = newFiber;
-      }
-      lastChild = newFiber;
-    });
-  }
-}
-
-function createFunctionComponent(fiber) {
-  initFunctionDom(fiber);
-  initChildFiber(fiber);
-  console.log("createFunctionComponent", fiber);
-}
-
-function createHtmlComponent(fiber) {
-  initHtmlDom(fiber);
-  initChildFiber(fiber);
+  const children = fiber.props.children;
+  initChildren(fiber, children);
 }
 
 function performUnitOfWork(fiber) {
   const isFunctionComponent = typeof fiber.type === "function";
+
   if (isFunctionComponent) {
-    createFunctionComponent(fiber);
+    updateFunctionComponent(fiber);
   } else {
-    createHtmlComponent(fiber);
+    updateHostComponent(fiber);
   }
 
-  console.log(fiber);
-
-  // 返回下一个fiber
   if (fiber.child) {
     return fiber.child;
   }
-  if (fiber.subling) {
-    return fiber.subling;
+
+  let nextFiber = fiber;
+  while (nextFiber) {
+    if (nextFiber.sibling) {
+      return nextFiber.sibling;
+    }
+    nextFiber = nextFiber.parent;
   }
-  return fiber.parent.subling;
 }
 
-requestIdleCallback(callback);
+requestIdleCallback(workLoop);
 
 const React = {
   render,
-  createElement,
+  createElement: createVDom,
 };
 
 export default React;

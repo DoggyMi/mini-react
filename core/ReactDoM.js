@@ -4,7 +4,7 @@ const ReactDom = {
   createRoot(container) {
     return {
       render(App) {
-        React.render(container, App);
+        React.render(App, container);
       },
     };
   },
