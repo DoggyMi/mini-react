@@ -1,7 +1,13 @@
 import React from "./core/React.js";
 
 function Counter({ num }) {
-  return <div>count: {num}</div>;
+  function onClick(){
+    console.log("123");
+  }
+  return <div >
+    <button onClick={onClick}>123</button>
+    count: {num}
+    </div>;
 }
 
 function CounterContainer() {
