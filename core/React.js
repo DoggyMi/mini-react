@@ -28,8 +28,20 @@ function render(elementData, container) {
   root = nextWorkOfUnit;
 }
 
+function update() {
+  // console.log(lastRoot);
+  nextWorkOfUnit = {
+    dom: lastRoot.dom,
+    props: lastRoot.props,
+    alternate: lastRoot,
+  };
+  root = nextWorkOfUnit;
+}
+
 let nextWorkOfUnit = null;
 let root = null;
+// 用于更新
+let lastRoot = null;
 
 function workLoop(param) {
   const timeRemaining = param.timeRemaining();
@@ -47,6 +59,7 @@ function workLoop(param) {
 
 function commitRoot() {
   commitWork(root.child);
+  lastRoot = root;
   root = null;
 }
 
@@ -57,9 +70,13 @@ function commitWork(fiber) {
   while (!fiberParent.dom) {
     fiberParent = fiberParent.parent;
   }
-
   if (fiber.dom) {
-    fiberParent.dom.append(fiber.dom);
+    if (fiber.action === "update") {
+      console.log("fiber.action === update", fiber);
+      updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
+    } else if (fiber.action === "placement") {
+      fiberParent.dom.append(fiber.dom);
+    }
   }
   commitWork(fiber.child);
   commitWork(fiber.sibling);
@@ -71,13 +88,26 @@ function createDom(type) {
     : document.createElement(type);
 }
 
-function updateProps(dom, props) {
+function updateProps(dom, props, oldProps) {
+  if (oldProps) {
+    Object.keys(oldProps).forEach((key) => {
+      if (key !== "children") {
+        console.log(dom, key);
+        if (!key in props) {
+          dom.removeAttribute(key);
+        }
+      }
+    });
+  }
+
   Object.keys(props).forEach((key) => {
     if (key !== "children") {
       if (key.startsWith("on")) {
         const eventName = key.slice(2).toLowerCase();
+        dom.removeEventListener(eventName, props[key]);
         dom.addEventListener(eventName, props[key]);
       } else {
+        console.log(key, props, dom);
         dom[key] = props[key];
       }
     }
@@ -85,17 +115,39 @@ function updateProps(dom, props) {
 }
 
 function initChildren(fiber, children) {
+  // 找老的子节点
+  let oldFiber = fiber.alternate?.child;
   let prevChild = null;
+  // console.log(fiber);
+  // console.log(oldFiber);
   children.forEach((child, index) => {
-    const newFiber = {
-      type: child.type,
-      props: child.props,
-      parent: fiber,
-      child: null,
-      sibling: null,
-      dom: null,
-    };
-
+    let newFiber;
+    // console.log(oldFiber, child);
+    if (oldFiber && oldFiber.type === child.type) {
+      newFiber = {
+        type: child.type,
+        props: child.props,
+        parent: fiber,
+        child: null,
+        sibling: null,
+        dom: oldFiber.dom,
+        alternate: oldFiber,
+        action: "update",
+      };
+    } else {
+      newFiber = {
+        type: child.type,
+        props: child.props,
+        parent: fiber,
+        child: null,
+        sibling: null,
+        dom: null,
+        action: "placement",
+      };
+    }
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling;
+    }
     if (index === 0) {
       fiber.child = newFiber;
     } else {
@@ -113,7 +165,7 @@ function updateFunctionComponent(fiber) {
 function updateHostComponent(fiber) {
   if (!fiber.dom) {
     const dom = (fiber.dom = createDom(fiber.type));
-    updateProps(dom, fiber.props);
+    updateProps(dom, fiber.props, {});
   }
 
   const children = fiber.props.children;
@@ -147,6 +199,7 @@ requestIdleCallback(workLoop);
 const React = {
   render,
   createElement: createVDom,
+  update,
 };
 
 export default React;

@@ -1,13 +1,15 @@
 import React from "./core/React.js";
-
+let count = 10;
 function Counter({ num }) {
-  function onClick(){
-    console.log("123");
+  function onClick() {
+    React.update();
   }
-  return <div >
-    <button onClick={onClick}>123</button>
-    count: {num}
-    </div>;
+  return (
+    <div>
+      <button onClick={onClick}>123</button>
+      count: {count++}
+    </div>
+  );
 }
 
 function CounterContainer() {
@@ -23,9 +25,9 @@ function App() {
   return (
     <div>
       hi-mini-react
-      <Counter num={10}></Counter>213
-      <Counter num={20}></Counter>
-      <CounterContainer></CounterContainer>
+      <Counter num={10}></Counter>
+      {/* <Counter num={20}></Counter> */}
+      {/* <CounterContainer></CounterContainer> */}
     </div>
   );
 }
