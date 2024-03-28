@@ -1,13 +1,16 @@
 import React from "./core/React.js";
 let count = 10;
+let props = { id: "11111" };
 function Counter({ num }) {
   function onClick() {
+    props = {};
+    count++;
     React.update();
   }
   return (
-    <div>
+    <div {...props}>
       <button onClick={onClick}>123</button>
-      count: {count++}
+      count: {count}
     </div>
   );
 }

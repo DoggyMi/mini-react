@@ -19,27 +19,26 @@ function createVDom(type, props, ...children) {
 }
 
 function render(elementData, container) {
-  nextWorkOfUnit = {
+  wipRoot = {
     dom: container,
     props: {
       children: [elementData],
     },
   };
-  root = nextWorkOfUnit;
+  nextWorkOfUnit = wipRoot;
 }
 
 function update() {
-  // console.log(lastRoot);
-  nextWorkOfUnit = {
+  wipRoot = {
     dom: lastRoot.dom,
     props: lastRoot.props,
     alternate: lastRoot,
   };
-  root = nextWorkOfUnit;
+  nextWorkOfUnit = wipRoot;
 }
 
 let nextWorkOfUnit = null;
-let root = null;
+let wipRoot = null;
 // 用于更新
 let lastRoot = null;
 
@@ -51,16 +50,17 @@ function workLoop(param) {
     shouldYield = timeRemaining < 1;
   }
   // console.log(nextFiber);
-  if (!nextWorkOfUnit && root) {
+  if (!nextWorkOfUnit && wipRoot) {
     commitRoot();
   }
   requestIdleCallback(workLoop);
 }
 
 function commitRoot() {
-  commitWork(root.child);
-  lastRoot = root;
-  root = null;
+  commitWork(wipRoot.child);
+  lastRoot = wipRoot;
+  console.log("lastRoot", lastRoot);
+  wipRoot = null;
 }
 
 function commitWork(fiber) {
@@ -72,7 +72,7 @@ function commitWork(fiber) {
   }
   if (fiber.dom) {
     if (fiber.action === "update") {
-      console.log("fiber.action === update", fiber);
+      // console.log("fiber.action === update", fiber);
       updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
     } else if (fiber.action === "placement") {
       fiberParent.dom.append(fiber.dom);
@@ -92,8 +92,9 @@ function updateProps(dom, props, oldProps) {
   if (oldProps) {
     Object.keys(oldProps).forEach((key) => {
       if (key !== "children") {
-        console.log(dom, key);
-        if (!key in props) {
+        // console.log(key, props);
+        if (!(key in props)) {
+          // console.log(dom, key);
           dom.removeAttribute(key);
         }
       }
@@ -104,27 +105,25 @@ function updateProps(dom, props, oldProps) {
     if (key !== "children") {
       if (key.startsWith("on")) {
         const eventName = key.slice(2).toLowerCase();
-        dom.removeEventListener(eventName, props[key]);
+        dom.removeEventListener(eventName, oldProps[key]);
         dom.addEventListener(eventName, props[key]);
       } else {
-        console.log(key, props, dom);
+        // console.log(key, props, dom);
         dom[key] = props[key];
       }
     }
   });
 }
 
-function initChildren(fiber, children) {
+function reconcileChildren(fiber, children) {
   // 找老的子节点
   let oldFiber = fiber.alternate?.child;
   let prevChild = null;
-  // console.log(fiber);
-  // console.log(oldFiber);
   children.forEach((child, index) => {
     let newFiber;
-    // console.log(oldFiber, child);
     if (oldFiber && oldFiber.type === child.type) {
       newFiber = {
+        // 标签类型
         type: child.type,
         props: child.props,
         parent: fiber,
@@ -136,14 +135,22 @@ function initChildren(fiber, children) {
       };
     } else {
       newFiber = {
+        // 标签类型 div,span(Html标签) 或者 函数(函数组件)
         type: child.type,
+        // 元素属性 与 子节点数据
         props: child.props,
+        // 构建链表数据结构用到 |
         parent: fiber,
+        // 构建链表数据结构用到
         child: null,
+        // 构建链表数据结构用到
         sibling: null,
+        // 节点对应的真实dom
         dom: null,
+        // effectTag 统一提交时，根据此节点控制放置元素还是更改属性
         action: "placement",
       };
+      console.log(newFiber.type);
     }
     if (oldFiber) {
       oldFiber = oldFiber.sibling;
@@ -159,7 +166,8 @@ function initChildren(fiber, children) {
 
 function updateFunctionComponent(fiber) {
   const children = [fiber.type(fiber.props)];
-  initChildren(fiber, children);
+  console.log(children);
+  reconcileChildren(fiber, children);
 }
 
 function updateHostComponent(fiber) {
@@ -169,7 +177,7 @@ function updateHostComponent(fiber) {
   }
 
   const children = fiber.props.children;
-  initChildren(fiber, children);
+  reconcileChildren(fiber, children);
 }
 
 function performUnitOfWork(fiber) {
