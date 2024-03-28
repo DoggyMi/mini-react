@@ -5,6 +5,7 @@ function createTextVDOM(textStr) {
 }
 
 function createVDom(type, props, ...children) {
+  console.log("children", children);
   return {
     type,
     props: {
@@ -42,6 +43,8 @@ let wipRoot = null;
 // 用于更新
 let lastRoot = null;
 
+let deletions = [];
+
 function workLoop(param) {
   const timeRemaining = param.timeRemaining();
   let shouldYield = false;
@@ -57,10 +60,24 @@ function workLoop(param) {
 }
 
 function commitRoot() {
+  deletions.forEach((fiber) => commitDelete(fiber));
   commitWork(wipRoot.child);
   lastRoot = wipRoot;
-  console.log("lastRoot", lastRoot);
   wipRoot = null;
+  deletions = [];
+}
+
+function commitDelete(fiber) {
+  console.log("commitDelete", fiber);
+  if (fiber.dom) {
+    let fiberParentHasDom = fiber.parent;
+    while (!fiberParentHasDom.dom) {
+      fiberParentHasDom = fiberParentHasDom.parent;
+    }
+    fiberParentHasDom.dom.removeChild(fiber.dom);
+  } else {
+    commitDelete(fiber.child);
+  }
 }
 
 function commitWork(fiber) {
@@ -89,27 +106,28 @@ function createDom(type) {
 }
 
 function updateProps(dom, props, oldProps) {
+  // 删除
   if (oldProps) {
     Object.keys(oldProps).forEach((key) => {
       if (key !== "children") {
-        // console.log(key, props);
-        if (!(key in props)) {
-          // console.log(dom, key);
+        if (!key in props) {
           dom.removeAttribute(key);
         }
       }
     });
   }
 
+  // 更新或者添加
   Object.keys(props).forEach((key) => {
     if (key !== "children") {
-      if (key.startsWith("on")) {
-        const eventName = key.slice(2).toLowerCase();
-        dom.removeEventListener(eventName, oldProps[key]);
-        dom.addEventListener(eventName, props[key]);
-      } else {
-        // console.log(key, props, dom);
-        dom[key] = props[key];
+      if (props[key] !== oldProps[key]) {
+        if (key.startsWith("on")) {
+          const eventName = key.slice(2).toLowerCase();
+          dom.removeEventListener(eventName, oldProps[key]);
+          dom.addEventListener(eventName, props[key]);
+        } else {
+          dom[key] = props[key];
+        }
       }
     }
   });
@@ -120,8 +138,11 @@ function reconcileChildren(fiber, children) {
   let oldFiber = fiber.alternate?.child;
   let prevChild = null;
   children.forEach((child, index) => {
+    console.log("child", child);
     let newFiber;
-    if (oldFiber && oldFiber.type === child.type) {
+
+    const isSameTag = oldFiber && oldFiber.type === child.type;
+    if (isSameTag) {
       newFiber = {
         // 标签类型
         type: child.type,
@@ -134,34 +155,39 @@ function reconcileChildren(fiber, children) {
         action: "update",
       };
     } else {
-      newFiber = {
-        // 标签类型 div,span(Html标签) 或者 函数(函数组件)
-        type: child.type,
-        // 元素属性 与 子节点数据
-        props: child.props,
-        // 构建链表数据结构用到 |
-        parent: fiber,
-        // 构建链表数据结构用到
-        child: null,
-        // 构建链表数据结构用到
-        sibling: null,
-        // 节点对应的真实dom
-        dom: null,
-        // effectTag 统一提交时，根据此节点控制放置元素还是更改属性
-        action: "placement",
-      };
-      console.log(newFiber.type);
+      if (child) {
+        newFiber = {
+          type: child.type,
+          props: child.props,
+          parent: fiber,
+          child: null,
+          sibling: null,
+          dom: null,
+          action: "placement",
+        };
+      }
+
+      if (oldFiber) {
+        deletions.push(oldFiber);
+      }
     }
     if (oldFiber) {
       oldFiber = oldFiber.sibling;
     }
+
     if (index === 0) {
       fiber.child = newFiber;
     } else {
       prevChild.sibling = newFiber;
     }
-    prevChild = newFiber;
+    if (newFiber) {
+      prevChild = newFiber;
+    }
   });
+  while (oldFiber) {
+    deletions.push(oldFiber);
+    oldFiber = oldFiber.sibling;
+  }
 }
 
 function updateFunctionComponent(fiber) {
@@ -173,6 +199,7 @@ function updateFunctionComponent(fiber) {
 function updateHostComponent(fiber) {
   if (!fiber.dom) {
     const dom = (fiber.dom = createDom(fiber.type));
+    console.log(fiber);
     updateProps(dom, fiber.props, {});
   }
 
@@ -182,7 +209,7 @@ function updateHostComponent(fiber) {
 
 function performUnitOfWork(fiber) {
   const isFunctionComponent = typeof fiber.type === "function";
-
+  console.log(fiber);
   if (isFunctionComponent) {
     updateFunctionComponent(fiber);
   } else {
