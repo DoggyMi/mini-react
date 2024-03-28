@@ -72,7 +72,6 @@ function commitWork(fiber) {
   }
   if (fiber.dom) {
     if (fiber.action === "update") {
-      console.log("fiber.action === update", fiber);
       updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
     } else if (fiber.action === "placement") {
       fiberParent.dom.append(fiber.dom);
@@ -102,13 +101,14 @@ function updateProps(dom, props, oldProps) {
 
   Object.keys(props).forEach((key) => {
     if (key !== "children") {
-      if (key.startsWith("on")) {
-        const eventName = key.slice(2).toLowerCase();
-        dom.removeEventListener(eventName, props[key]);
-        dom.addEventListener(eventName, props[key]);
-      } else {
-        console.log(key, props, dom);
-        dom[key] = props[key];
+      if (props[key] !== oldProps[key]) {
+        if (key.startsWith("on")) {
+          const eventName = key.slice(2).toLowerCase();
+          dom.removeEventListener(eventName, props[key]);
+          dom.addEventListener(eventName, props[key]);
+        } else {
+          dom[key] = props[key];
+        }
       }
     }
   });
@@ -123,7 +123,8 @@ function initChildren(fiber, children) {
   children.forEach((child, index) => {
     let newFiber;
     // console.log(oldFiber, child);
-    if (oldFiber && oldFiber.type === child.type) {
+    const isSameTag = oldFiber && oldFiber.type === child.type;
+    if (isSameTag) {
       newFiber = {
         type: child.type,
         props: child.props,
