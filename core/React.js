@@ -43,6 +43,8 @@ let root = null;
 // 用于更新
 let lastRoot = null;
 
+let deletions = [];
+
 function workLoop(param) {
   const timeRemaining = param.timeRemaining();
   let shouldYield = false;
@@ -50,7 +52,6 @@ function workLoop(param) {
     nextWorkOfUnit = performUnitOfWork(nextWorkOfUnit);
     shouldYield = timeRemaining < 1;
   }
-  // console.log(nextFiber);
   if (!nextWorkOfUnit && root) {
     commitRoot();
   }
@@ -58,9 +59,24 @@ function workLoop(param) {
 }
 
 function commitRoot() {
+  deletions.forEach((fiber) => commitDelete(fiber));
+
   commitWork(root.child);
   lastRoot = root;
   root = null;
+  deletions = [];
+}
+
+function commitDelete(fiber) {
+  if (fiber.dom) {
+    let fiberParentHasDom = fiber.parent;
+    while (!fiberParentHasDom.dom) {
+      fiberParentHasDom = fiberParentHasDom.parent;
+    }
+    fiberParentHasDom.dom.removeChild(fiber.dom);
+  } else {
+    commitDelete(fiber.child);
+  }
 }
 
 function commitWork(fiber) {
@@ -88,23 +104,23 @@ function createDom(type) {
 }
 
 function updateProps(dom, props, oldProps) {
+  // 删除
   if (oldProps) {
     Object.keys(oldProps).forEach((key) => {
       if (key !== "children") {
-        console.log(dom, key);
         if (!key in props) {
           dom.removeAttribute(key);
         }
       }
     });
   }
-
+  // 更新或者添加
   Object.keys(props).forEach((key) => {
     if (key !== "children") {
       if (props[key] !== oldProps[key]) {
         if (key.startsWith("on")) {
           const eventName = key.slice(2).toLowerCase();
-          dom.removeEventListener(eventName, props[key]);
+          dom.removeEventListener(eventName, oldProps[key]);
           dom.addEventListener(eventName, props[key]);
         } else {
           dom[key] = props[key];
@@ -122,7 +138,7 @@ function initChildren(fiber, children) {
   // console.log(oldFiber);
   children.forEach((child, index) => {
     let newFiber;
-    // console.log(oldFiber, child);
+
     const isSameTag = oldFiber && oldFiber.type === child.type;
     if (isSameTag) {
       newFiber = {
@@ -136,6 +152,9 @@ function initChildren(fiber, children) {
         action: "update",
       };
     } else {
+      if (oldFiber) {
+        deletions.push(oldFiber);
+      }
       newFiber = {
         type: child.type,
         props: child.props,
@@ -160,6 +179,7 @@ function initChildren(fiber, children) {
 
 function updateFunctionComponent(fiber) {
   const children = [fiber.type(fiber.props)];
+  // console.log(children);
   initChildren(fiber, children);
 }
 
