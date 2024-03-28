@@ -5,6 +5,7 @@ function createTextVDOM(textStr) {
 }
 
 function createVDom(type, props, ...children) {
+  console.log("children", children);
   return {
     type,
     props: {
@@ -115,6 +116,7 @@ function updateProps(dom, props, oldProps) {
       }
     });
   }
+
   // 更新或者添加
   Object.keys(props).forEach((key) => {
     if (key !== "children") {
@@ -138,6 +140,7 @@ function initChildren(fiber, children) {
   // console.log(fiber);
   // console.log(oldFiber);
   children.forEach((child, index) => {
+    console.log("child", child);
     let newFiber;
 
     const isSameTag = oldFiber && oldFiber.type === child.type;
@@ -153,28 +156,34 @@ function initChildren(fiber, children) {
         action: "update",
       };
     } else {
+      if (child) {
+        newFiber = {
+          type: child.type,
+          props: child.props,
+          parent: fiber,
+          child: null,
+          sibling: null,
+          dom: null,
+          action: "placement",
+        };
+      }
+
       if (oldFiber) {
         deletions.push(oldFiber);
       }
-      newFiber = {
-        type: child.type,
-        props: child.props,
-        parent: fiber,
-        child: null,
-        sibling: null,
-        dom: null,
-        action: "placement",
-      };
     }
     if (oldFiber) {
       oldFiber = oldFiber.sibling;
     }
+
     if (index === 0) {
       fiber.child = newFiber;
     } else {
       prevChild.sibling = newFiber;
     }
-    prevChild = newFiber;
+    if (newFiber) {
+      prevChild = newFiber;
+    }
   });
   while (oldFiber) {
     deletions.push(oldFiber);
@@ -191,6 +200,7 @@ function updateFunctionComponent(fiber) {
 function updateHostComponent(fiber) {
   if (!fiber.dom) {
     const dom = (fiber.dom = createDom(fiber.type));
+    console.log(fiber);
     updateProps(dom, fiber.props, {});
   }
 
@@ -200,7 +210,7 @@ function updateHostComponent(fiber) {
 
 function performUnitOfWork(fiber) {
   const isFunctionComponent = typeof fiber.type === "function";
-
+  console.log(fiber);
   if (isFunctionComponent) {
     updateFunctionComponent(fiber);
   } else {

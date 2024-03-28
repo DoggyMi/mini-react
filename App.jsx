@@ -44,7 +44,8 @@ function FooBarContainer() {
     <div>
       FooBarContainer
       <button onClick={doClick}>点击</button>
-      <div>{showFoo ? foo : bar}</div>
+      {showFoo && foo}
+      {/* <div>{showFoo ? foo : bar}</div> */}
       {/* <div>{showFoo ? <Foo></Foo> : <Bar></Bar>}</div> */}
     </div>
   );
