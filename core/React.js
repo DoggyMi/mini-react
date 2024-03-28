@@ -68,6 +68,7 @@ function commitRoot() {
 }
 
 function commitDelete(fiber) {
+  console.log("commitDelete", fiber);
   if (fiber.dom) {
     let fiberParentHasDom = fiber.parent;
     while (!fiberParentHasDom.dom) {
@@ -175,6 +176,10 @@ function initChildren(fiber, children) {
     }
     prevChild = newFiber;
   });
+  while (oldFiber) {
+    deletions.push(oldFiber);
+    oldFiber = oldFiber.sibling;
+  }
 }
 
 function updateFunctionComponent(fiber) {

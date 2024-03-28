@@ -14,10 +14,25 @@ function Counter({ num }) {
 }
 
 function Foo() {
-  return <div>FOO</div>;
+  return (
+    <>
+      FOO <div>123</div>
+      <div>456</div>
+    </>
+  );
+}
+
+function Bar() {
+  return <p>Bar</p>;
 }
 
 function FooBarContainer() {
+  const foo = (
+    <p>
+      foo <div>123</div>
+      <div>1243</div>
+    </p>
+  );
   const bar = <p>Bar</p>;
   const doClick = () => {
     showFoo = !showFoo;
@@ -29,7 +44,8 @@ function FooBarContainer() {
     <div>
       FooBarContainer
       <button onClick={doClick}>点击</button>
-      <div>{showFoo ? <Foo></Foo> : bar}</div>
+      <div>{showFoo ? foo : bar}</div>
+      {/* <div>{showFoo ? <Foo></Foo> : <Bar></Bar>}</div> */}
     </div>
   );
 }
