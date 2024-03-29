@@ -5,11 +5,9 @@ function Foo() {
   const [count, setCount] = React.useState(10);
   const [fooStr, setFooStr] = React.useState("A");
   const handleClick = () => {
-    setCount(2);
-    setCount(121);
-    setFooStr((str) => {
-      str + "A";
-    });
+    // setCount(2);
+    setCount((c) => c + 1);
+    setFooStr((str) => str + "A");
   };
   return (
     <div>
