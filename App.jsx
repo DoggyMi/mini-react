@@ -1,57 +1,50 @@
 import React from "./core/React.js";
-let countRoot = 10;
-let countFoo = 15;
-let countBar = 20;
-// let showFoo = false;
 
 function Foo() {
   console.log("更新 Foo");
-  const update = React.update();
+  const [count, setCount] = React.useState(10);
+  const [fooStr, setFooStr] = React.useState("A");
   const handleClick = () => {
-    console.log("点击 click foo");
-    countFoo++;
-    update();
+    setCount(2);
+    setCount(121);
+    setFooStr((str) => {
+      str + "A";
+    });
   };
   return (
     <div>
       <button onClick={handleClick}>Foo</button>
-      {countFoo}
+      <div> {count}</div>
+      <div> {fooStr}</div>
     </div>
   );
 }
 function Bar() {
   console.log("更新 Bar");
-  const update = React.update();
+  const [count, setCount] = React.useState(10);
   const handleClick = () => {
-    console.log("点击 click bar");
-    countBar++;
-    update();
+    setCount((c) => c + 1);
   };
   return (
     <div>
       <button onClick={handleClick}>Bar</button>
-      {countBar}
+      {count}
     </div>
   );
 }
 
 function App() {
   console.log("更新 App");
-  const update = React.update();
+  const [count, setCount] = React.useState(10);
   const handleClick = () => {
-    console.log("点击 click app");
-    countRoot++;
-    update();
+    setCount((c) => c + 1);
   };
   return (
     <div>
       hi-mini-react
-      <button onClick={handleClick}>App</button> {countRoot}
+      <button onClick={handleClick}>App</button> {count}
       <Foo></Foo>
       <Bar></Bar>
-      {/* <Counter num={10}></Counter> */}
-      {/* <Counter num={20}></Counter> */}
-      {/* <CounterContainer></CounterContainer> */}
     </div>
   );
 }

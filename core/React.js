@@ -42,6 +42,42 @@ function update() {
   };
 }
 
+let stateHooks = null;
+let stateHooksIndex = null;
+
+function useState(initial) {
+  let currentFiber = wipFiber;
+  const oldHook = currentFiber.alternate?.stateHooks[stateHooksIndex];
+  const stateHook = {
+    state: oldHook ? oldHook.state : initial,
+    queue: oldHook ? oldHook.queue : [],
+  };
+
+  stateHooks.push(stateHook);
+
+  currentFiber.stateHooks = stateHooks;
+
+  stateHooksIndex++;
+  stateHook.queue.forEach((action) => {
+    stateHook.state = action(stateHook.state);
+  });
+  stateHook.queue = [];
+  function setState(action) {
+    const egaerState =
+      typeof action === "function" ? action(stateHook.state) : action;
+    if (egaerState === stateHook.state) {
+      return;
+    }
+    stateHook.queue.push(typeof action === "function" ? action : () => action);
+    wipRoot = {
+      ...currentFiber,
+      alternate: currentFiber,
+    };
+    nextWorkOfUnit = wipRoot;
+  }
+  return [stateHook.state, setState];
+}
+
 let nextWorkOfUnit = null;
 let wipRoot = null;
 // 用于更新
@@ -202,6 +238,9 @@ function reconcileChildren(fiber, children) {
 }
 
 function updateFunctionComponent(fiber) {
+  stateHooks = [];
+  stateHooksIndex = 0;
+
   wipFiber = fiber;
   // console.log("fiber", fiber);
   const children = [fiber.type(fiber.props)];
@@ -248,6 +287,7 @@ const React = {
   render,
   createElement: createVDom,
   update,
+  useState,
 };
 
 export default React;
