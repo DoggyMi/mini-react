@@ -4,10 +4,30 @@ function Foo() {
   console.log("更新 Foo");
   const [count, setCount] = React.useState(10);
   const [fooStr, setFooStr] = React.useState("A");
+  React.useEffect(() => {
+    console.log("init");
+    return () => {
+      console.log("clear init");
+    };
+  }, []);
+
+  React.useEffect(() => {
+    console.log("count", count);
+    return () => {
+      console.log("clear count1");
+    };
+  }, [count]);
+
+  React.useEffect(() => {
+    console.log("count 2", count);
+    return () => {
+      console.log("clear count2");
+    };
+  }, [count]);
   const handleClick = () => {
     // setCount(2);
     setCount((c) => c + 1);
-    setFooStr((str) => str + "A");
+    // setFooStr((str) => str + "A");
   };
   return (
     <div>
