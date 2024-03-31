@@ -4,10 +4,11 @@ export default function Todos() {
     { text: "123", done: false, id: crypto.randomUUID() },
     { text: "456", done: true, id: crypto.randomUUID() },
   ]);
+
   const [displayList, setDisplayList] = React.useState([...itemList]);
   const [inputValue, setInputValue] = React.useState("");
   const [filter, setFilter] = React.useState("all");
-
+  console.log("更新 Todos", inputValue, itemList, displayList);
   React.useEffect(() => {
     const todos = localStorage.getItem("todos");
     if (todos) {
@@ -26,8 +27,11 @@ export default function Todos() {
   }, [filter, itemList]);
 
   function onAddClick() {
-    addTodo(inputValue);
-    setInputValue("");
+    console.log("onAddClick");
+    if (inputValue) {
+      addTodo(inputValue);
+      setInputValue("");
+    }
   }
 
   function onSaveClick() {
@@ -84,8 +88,11 @@ export default function Todos() {
       <div>
         <input
           type="text"
-          onChange={(e) => setInputValue(e.target.value)}
           value={inputValue}
+          onChange={(e) => {
+            console.log("onChange");
+            setInputValue(e.target.value);
+          }}
         />
         <button onClick={onAddClick}>add</button>
       </div>

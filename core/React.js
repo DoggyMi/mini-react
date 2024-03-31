@@ -72,19 +72,19 @@ function useState(initial) {
 
   // console.log("创建stateHook", stateHook.id, stateHook);
 
+  stateHook.queue.forEach((action) => {
+    stateHook.state = action(stateHook.state);
+  });
+  stateHook.queue = [];
+
   stateHooks.push(stateHook);
 
   currentFiber.stateHooks = stateHooks;
 
   stateHooksIndex++;
 
-  stateHook.queue.forEach((action) => {
-    stateHook.state = action(stateHook.state);
-  });
-  stateHook.queue = [];
-
   function setState(action) {
-    // console.log(currentFiber.id, "setState", currentFiber, action);
+    console.log(currentFiber.id, "setState", currentFiber, action);
     const egaerState =
       typeof action === "function" ? action(stateHook.state) : action;
     if (egaerState === stateHook.state) {
@@ -144,13 +144,13 @@ function workLoop(param) {
 function commitRoot() {
   deletions.forEach((fiber) => commitDelete(fiber));
   commitWork(wipRoot.child);
-  commitEffect(wipRoot);
+  commitEffect();
   currentRoot = wipRoot;
   wipRoot = null;
   deletions = [];
 }
 
-function commitEffect(fiber) {
+function commitEffect() {
   function runEffect(fiber) {
     if (!fiber) return;
     if (fiber.effectHooks) {
@@ -186,8 +186,8 @@ function commitEffect(fiber) {
     runCleanUp(fiber.child);
     runCleanUp(fiber.sibling);
   }
-  runCleanUp(fiber);
-  runEffect(fiber);
+  runCleanUp(wipRoot);
+  runEffect(wipRoot);
 }
 
 function commitDelete(fiber) {
@@ -210,7 +210,7 @@ function commitWork(fiber) {
     fiberParent = fiberParent.parent;
   }
   if (fiber.dom) {
-    if (fiber.action === "update" && fiber.dom) {
+    if (fiber.action === "update") {
       updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
     } else if (fiber.action === "placement") {
       fiberParent.dom.append(fiber.dom);
@@ -231,7 +231,7 @@ function updateProps(dom, props, oldProps) {
   if (oldProps) {
     Object.keys(oldProps).forEach((key) => {
       if (key !== "children") {
-        if (!key in props) {
+        if (!(key in props)) {
           dom.removeAttribute(key);
         }
       }
@@ -316,6 +316,7 @@ function reconcileChildren(fiber, children) {
       prevChild = newFiber;
     }
   });
+
   while (oldFiber) {
     deletions.push(oldFiber);
     oldFiber = oldFiber.sibling;
