@@ -70,7 +70,7 @@ function useState(initial) {
     oldHook.newHook = stateHook;
   }
 
-  console.log("创建stateHook", stateHook.id, stateHook);
+  // console.log("创建stateHook", stateHook.id, stateHook);
 
   stateHooks.push(stateHook);
 
@@ -84,7 +84,7 @@ function useState(initial) {
   stateHook.queue = [];
 
   function setState(action) {
-    console.log(currentFiber.id, "setState", currentFiber, action);
+    // console.log(currentFiber.id, "setState", currentFiber, action);
     const egaerState =
       typeof action === "function" ? action(stateHook.state) : action;
     if (egaerState === stateHook.state) {
@@ -115,7 +115,7 @@ function useEffect(action, deps) {
 let nextWorkOfUnit = null;
 let wipRoot = null;
 // 用于更新
-let lastRoot = null;
+let currentRoot = null;
 
 let deletions = [];
 let wipFiber = null;
@@ -134,6 +134,10 @@ function workLoop(param) {
   if (!nextWorkOfUnit && wipRoot) {
     commitRoot();
   }
+
+  if (!wipRoot && nextWorkOfUnit) {
+    wipRoot = currentRoot;
+  }
   requestIdleCallback(workLoop);
 }
 
@@ -141,7 +145,7 @@ function commitRoot() {
   deletions.forEach((fiber) => commitDelete(fiber));
   commitWork(wipRoot.child);
   commitEffect(wipRoot);
-  // lastRoot = wipRoot;
+  currentRoot = wipRoot;
   wipRoot = null;
   deletions = [];
 }
@@ -206,7 +210,7 @@ function commitWork(fiber) {
     fiberParent = fiberParent.parent;
   }
   if (fiber.dom) {
-    if (fiber.action === "update") {
+    if (fiber.action === "update" && fiber.dom) {
       updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
     } else if (fiber.action === "placement") {
       fiberParent.dom.append(fiber.dom);
@@ -251,7 +255,10 @@ function updateProps(dom, props, oldProps) {
 }
 
 function reconcileChildren(fiber, children) {
-  console.log("reconcileChildren", fiber.id, fiber);
+  if (fiber.id === "25=》") {
+    console.log("reconcileChildren", fiber.id, fiber, children);
+  }
+
   // 找老的子节点
   let oldFiber = fiber.alternate?.child;
   let prevChild = null;
