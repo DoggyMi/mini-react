@@ -5,7 +5,6 @@ function createTextVDOM(textStr) {
 }
 
 function createVDom(type, props, ...children) {
-  // console.log("children", children);
   return {
     type,
     props: {
@@ -30,10 +29,8 @@ function render(elementData, container) {
 }
 
 function update() {
-  // console.log(1, wipFiber);
   let currentFiber = wipFiber;
   return () => {
-    // console.log(2, currentFiber);
     wipRoot = {
       ...currentFiber,
       alternate: currentFiber,
@@ -45,30 +42,57 @@ function update() {
 let stateHooks = null;
 let stateHooksIndex = null;
 
+let i = 0;
+// 生成随机字符串
+function generateRandomString() {
+  return ++i + "=》";
+  // return Math.random().toString(36).substring(7).split("").join(".");
+}
+
 function useState(initial) {
   let currentFiber = wipFiber;
-  const oldHook = currentFiber.alternate?.stateHooks[stateHooksIndex];
+
+  let oldHook = currentFiber.alternate?.stateHooks[stateHooksIndex];
+
+  // 如果oldhook存在newHook属性，说明已经修改过数据了，循环查找到最新的hook
+  while (oldHook?.newHook) {
+    oldHook = oldHook.newHook;
+  }
+
   const stateHook = {
+    id: generateRandomString(),
     state: oldHook ? oldHook.state : initial,
     queue: oldHook ? oldHook.queue : [],
   };
+
+  // 如果有老的hook，将新的hook挂载到老的hook上
+  if (oldHook) {
+    oldHook.newHook = stateHook;
+  }
+
+  console.log("创建stateHook", stateHook.id, stateHook);
 
   stateHooks.push(stateHook);
 
   currentFiber.stateHooks = stateHooks;
 
   stateHooksIndex++;
+
   stateHook.queue.forEach((action) => {
     stateHook.state = action(stateHook.state);
   });
   stateHook.queue = [];
+
   function setState(action) {
+    console.log(currentFiber.id, "setState", currentFiber, action);
     const egaerState =
       typeof action === "function" ? action(stateHook.state) : action;
     if (egaerState === stateHook.state) {
       return;
     }
     stateHook.queue.push(typeof action === "function" ? action : () => action);
+    // 由于闭包原因？如果父元素setState之前，子元素的stateHooks已经更新了，
+    // 这里的currentFiber里的子元素是不会更新的,所以会导致数据错乱
     wipRoot = {
       ...currentFiber,
       alternate: currentFiber,
@@ -102,13 +126,11 @@ function workLoop(param) {
   while (nextWorkOfUnit && !shouldYield) {
     nextWorkOfUnit = performUnitOfWork(nextWorkOfUnit);
     if (wipRoot?.sibling?.type === nextWorkOfUnit?.type) {
-      // console.log("hit!!!", wipRoot, nextWorkOfUnit);
       nextWorkOfUnit = undefined;
     }
 
     shouldYield = timeRemaining < 1;
   }
-  // console.log(nextFiber);
   if (!nextWorkOfUnit && wipRoot) {
     commitRoot();
   }
@@ -165,7 +187,6 @@ function commitEffect(fiber) {
 }
 
 function commitDelete(fiber) {
-  // console.log("commitDelete", fiber);
   if (fiber.dom) {
     let fiberParentHasDom = fiber.parent;
     while (!fiberParentHasDom.dom) {
@@ -186,7 +207,6 @@ function commitWork(fiber) {
   }
   if (fiber.dom) {
     if (fiber.action === "update") {
-      // console.log("fiber.action === update", fiber);
       updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
     } else if (fiber.action === "placement") {
       fiberParent.dom.append(fiber.dom);
@@ -219,7 +239,6 @@ function updateProps(dom, props, oldProps) {
     if (key !== "children") {
       if (props[key] !== oldProps[key]) {
         if (key.startsWith("on")) {
-          // console.log("key", key, oldProps[key], props[key]);
           const eventName = key.slice(2).toLowerCase();
           dom.removeEventListener(eventName, oldProps[key]);
           dom.addEventListener(eventName, props[key]);
@@ -232,11 +251,11 @@ function updateProps(dom, props, oldProps) {
 }
 
 function reconcileChildren(fiber, children) {
+  console.log("reconcileChildren", fiber.id, fiber);
   // 找老的子节点
   let oldFiber = fiber.alternate?.child;
   let prevChild = null;
   children.forEach((child, index) => {
-    // console.log("child", child);
     let newFiber;
 
     const isSameTag = oldFiber && oldFiber.type === child.type;
@@ -251,7 +270,11 @@ function reconcileChildren(fiber, children) {
         dom: oldFiber.dom,
         alternate: oldFiber,
         action: "update",
+        id: generateRandomString(),
       };
+      if (typeof newFiber.type === "function") {
+        console.log("创建fiber-update", newFiber.id, newFiber);
+      }
     } else {
       if (child) {
         newFiber = {
@@ -262,7 +285,11 @@ function reconcileChildren(fiber, children) {
           sibling: null,
           dom: null,
           action: "placement",
+          id: generateRandomString(),
         };
+        if (typeof newFiber.type === "function") {
+          console.log("创建fiber-placement", newFiber.id, newFiber);
+        }
       }
 
       if (oldFiber) {
@@ -293,16 +320,15 @@ function updateFunctionComponent(fiber) {
   stateHooksIndex = 0;
   effectHooks = [];
   wipFiber = fiber;
-  // console.log("fiber", fiber);
+
   const children = [fiber.type(fiber.props)];
-  // console.log(children);
+
   reconcileChildren(fiber, children);
 }
 
 function updateHostComponent(fiber) {
   if (!fiber.dom) {
     const dom = (fiber.dom = createDom(fiber.type));
-    // console.log(fiber);
     updateProps(dom, fiber.props, {});
   }
 
@@ -312,7 +338,7 @@ function updateHostComponent(fiber) {
 
 function performUnitOfWork(fiber) {
   const isFunctionComponent = typeof fiber.type === "function";
-  // console.log(fiber);
+
   if (isFunctionComponent) {
     updateFunctionComponent(fiber);
   } else {

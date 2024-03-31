@@ -5,23 +5,23 @@ function Foo() {
   const [count, setCount] = React.useState(10);
   const [fooStr, setFooStr] = React.useState("A");
   React.useEffect(() => {
-    console.log("init");
+    // console.log("init");
     return () => {
-      console.log("clear init");
+      // console.log("clear init");
     };
   }, []);
 
   React.useEffect(() => {
-    console.log("count", count);
+    // console.log("count", count);
     return () => {
-      console.log("clear count1");
+      // console.log("clear count1");
     };
   }, [count]);
 
   React.useEffect(() => {
-    console.log("count 2", count);
+    // console.log("count 2", count);
     return () => {
-      console.log("clear count2");
+      // console.log("clear count2");
     };
   }, [count]);
   const handleClick = () => {
@@ -39,7 +39,7 @@ function Foo() {
 }
 function Bar() {
   console.log("更新 Bar");
-  const [count, setCount] = React.useState(10);
+  const [count, setCount] = React.useState(20);
   const handleClick = () => {
     setCount((c) => c + 1);
   };
@@ -59,9 +59,8 @@ function App() {
   };
   return (
     <div>
-      hi-mini-react
-      <button onClick={handleClick}>App</button> {count}
-      <Foo></Foo>
+      <button onClick={handleClick}>App</button>
+      {count}
       <Bar></Bar>
     </div>
   );
